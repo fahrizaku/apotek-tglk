@@ -1,31 +1,21 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
-import { ArrowLeft, ImageIcon, Plus, Minus, Loader2, X } from "lucide-react";
-
-// Daftar kategori produk (contoh)
-const PRODUCT_CATEGORIES = [
-  "Makanan",
-  "Minuman",
-  "Obat",
-  "Vitamin",
-  "Kesehatan",
-  "Perawatan Tubuh",
-  "Perawatan Wajah",
-  "Lainnya",
-];
+import { ArrowLeft, ImageIcon, Plus, Loader2, X, Search } from "lucide-react";
 
 export default function AddProductPage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const [categories, setCategories] = useState([]);
   const [message, setMessage] = useState({ type: "", text: "" });
   const [imagePreview, setImagePreview] = useState(null);
+  const [categorySearch, setCategorySearch] = useState("");
 
   // State untuk form
   const [formData, setFormData] = useState({
     name: "",
-    categories: [], // Changed from single category to array
+    categories: [],
     price: "",
     discountPrice: "",
     stock: "0",
@@ -36,6 +26,45 @@ export default function AddProductPage() {
     rating: "0",
     reviewCount: "0",
   });
+
+  // Fetch categories from API
+  const fetchCategories = async () => {
+    setCategoriesLoading(true);
+    try {
+      const response = await fetch("/api/admin/categories");
+      const data = await response.json();
+
+      if (response.ok) {
+        setCategories(data);
+      } else {
+        console.error("Error fetching categories:", data.message);
+        setMessage({
+          type: "error",
+          text: "Gagal mengambil data kategori",
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching categories:", error);
+      setMessage({
+        type: "error",
+        text: "Terjadi kesalahan saat mengambil data kategori",
+      });
+    } finally {
+      setCategoriesLoading(false);
+    }
+  };
+
+  // Load categories on component mount
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  // Filter categories berdasarkan pencarian
+  const filteredCategories = categories.filter(
+    (category) =>
+      category.name.toLowerCase().includes(categorySearch.toLowerCase()) &&
+      !formData.categories.includes(category.name)
+  );
 
   // Handle perubahan input form
   const handleInputChange = (e) => {
@@ -53,6 +82,7 @@ export default function AddProductPage() {
         ...formData,
         categories: [...formData.categories, categoryName],
       });
+      setCategorySearch(""); // Clear search after adding
     }
   };
 
@@ -132,6 +162,7 @@ export default function AddProductPage() {
         reviewCount: "0",
       });
       setImagePreview(null);
+      setCategorySearch("");
 
       // Redirect ke halaman daftar produk setelah 2 detik
       setTimeout(() => {
@@ -225,7 +256,55 @@ export default function AddProductPage() {
                 </div>
               )}
 
-              {/* Category Selection Dropdown */}
+              {/* Category Search Input */}
+              <div className="relative mb-2">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <input
+                  type="text"
+                  placeholder="Cari kategori..."
+                  value={categorySearch}
+                  onChange={(e) => setCategorySearch(e.target.value)}
+                  disabled={categoriesLoading}
+                  className="w-full pl-10 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                />
+                {categorySearch && (
+                  <button
+                    type="button"
+                    onClick={() => setCategorySearch("")}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+
+              {/* Category Results */}
+              {categorySearch && (
+                <div className="border border-gray-300 rounded-md max-h-48 overflow-y-auto mb-2 bg-white shadow-sm">
+                  {categoriesLoading ? (
+                    <div className="p-3 text-gray-500 text-center">
+                      Memuat kategori...
+                    </div>
+                  ) : filteredCategories.length > 0 ? (
+                    filteredCategories.map((category) => (
+                      <button
+                        key={category.id}
+                        type="button"
+                        onClick={() => handleCategoryAdd(category.name)}
+                        className="w-full text-left p-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-colors"
+                      >
+                        {category.name}
+                      </button>
+                    ))
+                  ) : (
+                    <div className="p-3 text-gray-500 text-center">
+                      Tidak ada kategori yang ditemukan
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Category Selection Dropdown (fallback) */}
               <select
                 onChange={(e) => {
                   if (e.target.value) {
@@ -233,17 +312,66 @@ export default function AddProductPage() {
                     e.target.value = "";
                   }
                 }}
-                className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                disabled={categoriesLoading}
+                className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 mb-2"
               >
-                <option value="">Pilih Kategori untuk Ditambahkan</option>
-                {PRODUCT_CATEGORIES.filter(
-                  (cat) => !formData.categories.includes(cat)
-                ).map((category) => (
-                  <option key={category} value={category}>
-                    {category}
-                  </option>
-                ))}
+                <option value="">
+                  {categoriesLoading
+                    ? "Memuat kategori..."
+                    : "Atau pilih dari dropdown"}
+                </option>
+                {categories
+                  .filter((cat) => !formData.categories.includes(cat.name))
+                  .map((category) => (
+                    <option key={category.id} value={category.name}>
+                      {category.name}
+                    </option>
+                  ))}
               </select>
+
+              {/* Quick Add Category Input */}
+              <div>
+                <div className="flex">
+                  <input
+                    type="text"
+                    placeholder="Atau ketik kategori baru..."
+                    className="flex-1 p-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                    onKeyPress={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        const newCategory = e.target.value.trim();
+                        if (
+                          newCategory &&
+                          !formData.categories.includes(newCategory)
+                        ) {
+                          handleCategoryAdd(newCategory);
+                          e.target.value = "";
+                        }
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      const input = e.target.previousElementSibling;
+                      const newCategory = input.value.trim();
+                      if (
+                        newCategory &&
+                        !formData.categories.includes(newCategory)
+                      ) {
+                        handleCategoryAdd(newCategory);
+                        input.value = "";
+                      }
+                    }}
+                    className="px-3 py-2 bg-gray-200 border border-l-0 border-gray-300 rounded-r-md hover:bg-gray-300 text-sm"
+                  >
+                    Tambah
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Tekan Enter atau klik Tambah untuk menambahkan kategori baru
+                </p>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -461,8 +589,8 @@ export default function AddProductPage() {
           </button>
           <button
             type="submit"
-            disabled={isSubmitting}
-            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md shadow-sm text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 flex items-center"
+            disabled={isSubmitting || categoriesLoading}
+            className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-md shadow-sm text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 flex items-center"
           >
             {isSubmitting ? (
               <>

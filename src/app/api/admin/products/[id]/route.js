@@ -5,7 +5,7 @@ import prisma from "@/lib/prisma";
 // GET - Fetch a single product by ID for admin
 export async function GET(request, { params }) {
   try {
-    const { id } = params;
+    const { id } = await params;
     const productId = parseInt(id);
 
     if (isNaN(productId)) {
@@ -63,7 +63,7 @@ export async function GET(request, { params }) {
 // PUT - Update a product
 export async function PUT(request, { params }) {
   try {
-    const { id } = params;
+    const { id } = await params;
     const productId = parseInt(id);
     const data = await request.json();
 
@@ -156,7 +156,7 @@ export async function PUT(request, { params }) {
 // DELETE - Delete a product
 export async function DELETE(request, { params }) {
   try {
-    const { id } = params;
+    const { id } = await params;
     const productId = parseInt(id);
 
     if (isNaN(productId)) {

@@ -23,23 +23,12 @@ const formatPrice = (price) => {
   }).format(price);
 };
 
-// Daftar kategori produk (contoh)
-const PRODUCT_CATEGORIES = [
-  "Semua Kategori",
-  "Makanan",
-  "Minuman",
-  "Obat",
-  "Vitamin",
-  "Kesehatan",
-  "Perawatan Tubuh",
-  "Perawatan Wajah",
-  "Lainnya",
-];
-
 export default function AdminProductsPage() {
   const router = useRouter();
   const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("Semua Kategori");
   const [pagination, setPagination] = useState({
@@ -54,6 +43,25 @@ export default function AdminProductsPage() {
     productName: "",
   });
   const [message, setMessage] = useState({ type: "", text: "" });
+
+  // Fetch categories from API
+  const fetchCategories = async () => {
+    setCategoriesLoading(true);
+    try {
+      const response = await fetch("/api/admin/categories");
+      const data = await response.json();
+
+      if (response.ok) {
+        setCategories([{ name: "Semua Kategori" }, ...data]);
+      } else {
+        console.error("Error fetching categories:", data.message);
+      }
+    } catch (error) {
+      console.error("Error fetching categories:", error);
+    } finally {
+      setCategoriesLoading(false);
+    }
+  };
 
   // Fetch products from API
   const fetchProducts = async () => {
@@ -91,6 +99,11 @@ export default function AdminProductsPage() {
       setLoading(false);
     }
   };
+
+  // Load categories on initial load
+  useEffect(() => {
+    fetchCategories();
+  }, []);
 
   // Load products on initial load and when filters change
   useEffect(() => {
@@ -210,13 +223,21 @@ export default function AdminProductsPage() {
               <select
                 value={selectedCategory}
                 onChange={handleCategoryChange}
+                disabled={categoriesLoading}
                 className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
               >
-                {PRODUCT_CATEGORIES.map((category) => (
-                  <option key={category} value={category}>
-                    {category}
-                  </option>
-                ))}
+                {categoriesLoading ? (
+                  <option>Memuat kategori...</option>
+                ) : (
+                  categories.map((category) => (
+                    <option key={category.name} value={category.name}>
+                      {category.name}
+                      {category._count?.products !== undefined &&
+                        category.name !== "Semua Kategori" &&
+                        ` (${category._count.products})`}
+                    </option>
+                  ))
+                )}
               </select>
             </div>
           </div>

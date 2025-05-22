@@ -1,8 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import Image from "next/image";
-import { ArrowLeft, ImageIcon, Save, Loader2 } from "lucide-react";
+import { ArrowLeft, ImageIcon, Save, Loader2, X } from "lucide-react";
 
 // Daftar kategori produk (contoh)
 const PRODUCT_CATEGORIES = [
@@ -18,7 +17,8 @@ const PRODUCT_CATEGORIES = [
 
 export default function EditProductPage() {
   const router = useRouter();
-  const { id } = useParams();
+  const params = useParams();
+  const productId = params.id;
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState({ type: "", text: "" });
@@ -27,7 +27,7 @@ export default function EditProductPage() {
   // State untuk form
   const [formData, setFormData] = useState({
     name: "",
-    category: "",
+    categories: [], // Changed from single category to array
     price: "",
     discountPrice: "",
     stock: "0",
@@ -44,7 +44,7 @@ export default function EditProductPage() {
     const fetchProduct = async () => {
       setLoading(true);
       try {
-        const response = await fetch(`/api/admin/products/${id}`);
+        const response = await fetch(`/api/admin/products/${productId}`);
 
         if (!response.ok) {
           throw new Error("Gagal mengambil data produk");
@@ -55,7 +55,7 @@ export default function EditProductPage() {
         // Set form data from product
         setFormData({
           name: product.name || "",
-          category: product.category || "",
+          categories: product.categoryNames || [], // Use categoryNames from API
           price: product.price?.toString() || "",
           discountPrice: product.discountPrice?.toString() || "",
           stock: product.stock?.toString() || "0",
@@ -82,10 +82,10 @@ export default function EditProductPage() {
       }
     };
 
-    if (id) {
+    if (productId) {
       fetchProduct();
     }
-  }, [id]);
+  }, [productId]);
 
   // Handle perubahan input form
   const handleInputChange = (e) => {
@@ -93,6 +93,24 @@ export default function EditProductPage() {
     setFormData({
       ...formData,
       [name]: type === "checkbox" ? checked : value,
+    });
+  };
+
+  // Handle kategori selection
+  const handleCategoryAdd = (categoryName) => {
+    if (!formData.categories.includes(categoryName)) {
+      setFormData({
+        ...formData,
+        categories: [...formData.categories, categoryName],
+      });
+    }
+  };
+
+  // Handle kategori removal
+  const handleCategoryRemove = (categoryName) => {
+    setFormData({
+      ...formData,
+      categories: formData.categories.filter((cat) => cat !== categoryName),
     });
   };
 
@@ -116,17 +134,21 @@ export default function EditProductPage() {
 
     try {
       // Validasi data
-      if (!formData.name || !formData.category || !formData.price) {
+      if (
+        !formData.name ||
+        formData.categories.length === 0 ||
+        !formData.price
+      ) {
         setMessage({
           type: "error",
-          text: "Nama, kategori, dan harga wajib diisi",
+          text: "Nama, minimal satu kategori, dan harga wajib diisi",
         });
         setIsSubmitting(false);
         return;
       }
 
       // Kirim data ke API
-      const response = await fetch(`/api/admin/products/${id}`, {
+      const response = await fetch(`/api/admin/products/${productId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -162,7 +184,7 @@ export default function EditProductPage() {
 
   if (loading) {
     return (
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 sm:py-8 flex items-center justify-center">
+      <div className="max-w-4xl mx-auto px-4 py-8 flex items-center justify-center">
         <Loader2 className="animate-spin h-8 w-8 text-green-500" />
         <span className="ml-2 text-gray-500">Memuat data produk...</span>
       </div>
@@ -170,7 +192,7 @@ export default function EditProductPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 sm:py-8">
+    <div className="max-w-4xl mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-6">
         <button
           onClick={handleGoBack}
@@ -179,9 +201,7 @@ export default function EditProductPage() {
           <ArrowLeft className="h-4 w-4 mr-1" />
           <span>Kembali</span>
         </button>
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-800">
-          Edit Produk
-        </h1>
+        <h1 className="text-2xl font-bold text-gray-800">Edit Produk</h1>
       </div>
 
       {/* Alert Message */}
@@ -219,23 +239,49 @@ export default function EditProductPage() {
               />
             </div>
 
+            {/* Categories Section */}
             <div>
-              <label
-                htmlFor="category"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Kategori <span className="text-red-500">*</span>
               </label>
+
+              {/* Selected Categories */}
+              {formData.categories.length > 0 && (
+                <div className="mb-2">
+                  <div className="flex flex-wrap gap-2">
+                    {formData.categories.map((category) => (
+                      <div
+                        key={category}
+                        className="inline-flex items-center bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm"
+                      >
+                        {category}
+                        <button
+                          type="button"
+                          onClick={() => handleCategoryRemove(category)}
+                          className="ml-2 text-green-600 hover:text-green-800"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Category Selection Dropdown */}
               <select
-                id="category"
-                name="category"
-                value={formData.category}
-                onChange={handleInputChange}
+                onChange={(e) => {
+                  if (e.target.value) {
+                    handleCategoryAdd(e.target.value);
+                    e.target.value = "";
+                  }
+                }}
                 className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                required
               >
-                <option value="">Pilih Kategori</option>
-                {PRODUCT_CATEGORIES.map((category) => (
+                <option value="">Pilih Kategori untuk Ditambahkan</option>
+                {PRODUCT_CATEGORIES.filter(
+                  (cat) => !formData.categories.includes(cat)
+                ).map((category) => (
                   <option key={category} value={category}>
                     {category}
                   </option>
@@ -424,11 +470,10 @@ export default function EditProductPage() {
             <div className="border border-gray-300 rounded-md p-2 h-64 flex items-center justify-center">
               {imagePreview ? (
                 <div className="relative w-full h-full">
-                  <Image
+                  <img
                     src={imagePreview}
                     alt="Preview"
-                    fill
-                    className="object-contain"
+                    className="w-full h-full object-contain"
                     onError={() => {
                       setImagePreview(null);
                       setMessage({

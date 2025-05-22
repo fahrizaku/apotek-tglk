@@ -1,8 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
-import Image from "next/image";
 import {
   Search,
   Plus,
@@ -160,13 +158,13 @@ export default function AdminProductsPage() {
         <h1 className="text-xl sm:text-2xl font-bold text-gray-800 mb-2 sm:mb-0">
           Kelola Produk
         </h1>
-        <Link
-          href="/admin/products/add"
+        <button
+          onClick={() => router.push("/admin/products/add")}
           className="inline-flex items-center justify-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md shadow-sm text-sm font-medium"
         >
           <Plus className="h-4 w-4 mr-2" />
           Tambah Produk Baru
-        </Link>
+        </button>
       </div>
 
       {/* Alert Message */}
@@ -286,13 +284,9 @@ export default function AdminProductsPage() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <div className="h-10 w-10 flex-shrink-0 mr-3">
-                            <Image
-                              src={
-                                product.mediaUrl || "/placeholder-product.jpg"
-                              }
+                            <img
+                              src={product.mediaUrl || "/api/placeholder/40/40"}
                               alt={product.name}
-                              width={40}
-                              height={40}
                               className="h-10 w-10 rounded-md object-cover"
                             />
                           </div>
@@ -301,8 +295,28 @@ export default function AdminProductsPage() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {product.category}
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-500">
+                          {product.categoryNames &&
+                          product.categoryNames.length > 0 ? (
+                            <div className="flex flex-wrap gap-1">
+                              {product.categoryNames.map(
+                                (categoryName, index) => (
+                                  <span
+                                    key={index}
+                                    className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                                  >
+                                    {categoryName}
+                                  </span>
+                                )
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-gray-400">
+                              Tidak ada kategori
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         {product.discountPrice ? (
@@ -334,12 +348,14 @@ export default function AdminProductsPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <Link
-                          href={`/admin/products/edit/${product.id}`}
-                          className="text-green-600 hover:text-green-900 mr-3"
+                        <button
+                          onClick={() =>
+                            router.push(`/admin/products/edit/${product.id}`)
+                          }
+                          className="text-green-600 hover:text-green-900 mr-3 cursor-pointer"
                         >
                           <Edit className="h-4 w-4 inline" />
-                        </Link>
+                        </button>
                         <button
                           onClick={() =>
                             setDeleteModal({
@@ -448,9 +464,20 @@ export default function AdminProductsPage() {
       {deleteModal.isOpen && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
+            {/* Background overlay */}
+            <div
+              className="fixed inset-0 bg-gray-500/75 transition-opacity"
+              onClick={() =>
+                setDeleteModal({
+                  isOpen: false,
+                  productId: null,
+                  productName: "",
+                })
+              }
+            ></div>
 
-            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+            {/* Modal dialog */}
+            <div className="relative inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full z-10">
               <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                 <div className="sm:flex sm:items-start">
                   <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">

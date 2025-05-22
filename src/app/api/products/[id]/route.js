@@ -4,7 +4,7 @@ import prisma from "@/lib/prisma";
 // GET - Fetch a single product by ID
 export async function GET(request, { params }) {
   try {
-    const { id } = params;
+    const { id } = await params;
     const productId = parseInt(id);
 
     if (isNaN(productId)) {
@@ -28,7 +28,7 @@ export async function GET(request, { params }) {
     // Ensure minimum default values for UI consistency
     const processedProduct = {
       ...product,
-      unit: product.unit || "porsi",
+      unit: product.unit || "pcs",
       rating: product.rating || 0,
       reviewCount: product.reviewCount || 0,
       description: product.description || "-",

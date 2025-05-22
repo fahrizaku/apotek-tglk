@@ -17,7 +17,6 @@ datasource db {
 model Product {
   id            Int      @id @default(autoincrement())
   name          String
-  category      String
   price         Int
   discountPrice Int?
   rating        Float?
@@ -29,4 +28,30 @@ model Product {
   mediaUrl      String? // Stores the primary image URL
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+
+  // Many-to-many relationship with categories
+  categories ProductCategory[]
+}
+
+model Category {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Many-to-many relationship with products
+  products ProductCategory[]
+}
+
+model ProductCategory {
+  id         Int      @id @default(autoincrement())
+  productId  Int
+  categoryId Int
+  createdAt  DateTime @default(now())
+
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, categoryId])
 }

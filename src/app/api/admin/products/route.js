@@ -1,4 +1,4 @@
-// This file would be saved as /src/app/api/admin/products/route.js
+// File: src/app/api/admin/products/route.js
 
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
@@ -26,25 +26,49 @@ export async function GET(request) {
       };
     }
 
-    if (category) {
-      where.category = category;
+    if (category && category !== "Semua Kategori") {
+      where.categories = {
+        some: {
+          category: {
+            name: category,
+          },
+        },
+      };
     }
 
     // Get total count for pagination
     const totalCount = await prisma.product.count({ where });
 
-    // Get the products
+    // Get the products with their categories
     const products = await prisma.product.findMany({
       where,
       skip,
       take: pageSize,
       orderBy: { createdAt: "desc" },
+      include: {
+        categories: {
+          include: {
+            category: true,
+          },
+        },
+      },
     });
+
+    // Transform the data to include category names
+    const transformedProducts = products.map((product) => ({
+      ...product,
+      categoryNames: product.categories.map((pc) => pc.category.name),
+      // Keep backward compatibility with single category field
+      category:
+        product.categories.length > 0
+          ? product.categories[0].category.name
+          : "",
+    }));
 
     // Return the products with pagination metadata
     return NextResponse.json(
       {
-        data: products,
+        data: transformedProducts,
         meta: {
           page: parseInt(page),
           pageSize,
@@ -75,18 +99,22 @@ export async function POST(request) {
     const data = await request.json();
 
     // Validate required fields
-    if (!data.name || !data.category || data.price === undefined) {
+    if (
+      !data.name ||
+      !data.categories ||
+      data.categories.length === 0 ||
+      data.price === undefined
+    ) {
       return NextResponse.json(
         { message: "Nama, kategori, dan harga produk wajib diisi" },
         { status: 400 }
       );
     }
 
-    // Create the product
+    // Create the product with categories
     const newProduct = await prisma.product.create({
       data: {
         name: data.name,
-        category: data.category,
         price: parseInt(data.price),
         discountPrice: data.discountPrice ? parseInt(data.discountPrice) : null,
         stock: data.stock ? parseInt(data.stock) : 0,
@@ -96,11 +124,34 @@ export async function POST(request) {
         mediaUrl: data.mediaUrl || null,
         rating: data.rating ? parseFloat(data.rating) : 0,
         reviewCount: data.reviewCount ? parseInt(data.reviewCount) : 0,
+        categories: {
+          create: data.categories.map((categoryName) => ({
+            category: {
+              connectOrCreate: {
+                where: { name: categoryName },
+                create: { name: categoryName },
+              },
+            },
+          })),
+        },
+      },
+      include: {
+        categories: {
+          include: {
+            category: true,
+          },
+        },
       },
     });
 
+    // Transform the response
+    const transformedProduct = {
+      ...newProduct,
+      categoryNames: newProduct.categories.map((pc) => pc.category.name),
+    };
+
     return NextResponse.json(
-      { message: "Produk berhasil ditambahkan", data: newProduct },
+      { message: "Produk berhasil ditambahkan", data: transformedProduct },
       { status: 201 }
     );
   } catch (error) {

@@ -17,6 +17,13 @@ export async function GET(request, { params }) {
 
     const product = await prisma.product.findUnique({
       where: { id: productId },
+      include: {
+        categories: {
+          include: {
+            category: true,
+          },
+        },
+      },
     });
 
     if (!product) {
@@ -26,7 +33,18 @@ export async function GET(request, { params }) {
       );
     }
 
-    return NextResponse.json(product, { status: 200 });
+    // Transform the data to include category names
+    const transformedProduct = {
+      ...product,
+      categoryNames: product.categories.map((pc) => pc.category.name),
+      // Keep backward compatibility
+      category:
+        product.categories.length > 0
+          ? product.categories[0].category.name
+          : "",
+    };
+
+    return NextResponse.json(transformedProduct, { status: 200 });
   } catch (error) {
     console.error(`Error fetching product:`, error);
     return NextResponse.json(
@@ -59,6 +77,9 @@ export async function PUT(request, { params }) {
     // Check if product exists
     const existingProduct = await prisma.product.findUnique({
       where: { id: productId },
+      include: {
+        categories: true,
+      },
     });
 
     if (!existingProduct) {
@@ -73,7 +94,6 @@ export async function PUT(request, { params }) {
       where: { id: productId },
       data: {
         name: data.name,
-        category: data.category,
         price: parseInt(data.price),
         discountPrice: data.discountPrice ? parseInt(data.discountPrice) : null,
         stock: data.stock ? parseInt(data.stock) : 0,
@@ -83,11 +103,39 @@ export async function PUT(request, { params }) {
         mediaUrl: data.mediaUrl || null,
         rating: data.rating ? parseFloat(data.rating) : 0,
         reviewCount: data.reviewCount ? parseInt(data.reviewCount) : 0,
+        categories: {
+          // Delete existing categories
+          deleteMany: {},
+          // Create new categories
+          create: data.categories
+            ? data.categories.map((categoryName) => ({
+                category: {
+                  connectOrCreate: {
+                    where: { name: categoryName },
+                    create: { name: categoryName },
+                  },
+                },
+              }))
+            : [],
+        },
+      },
+      include: {
+        categories: {
+          include: {
+            category: true,
+          },
+        },
       },
     });
 
+    // Transform the response
+    const transformedProduct = {
+      ...updatedProduct,
+      categoryNames: updatedProduct.categories.map((pc) => pc.category.name),
+    };
+
     return NextResponse.json(
-      { message: "Produk berhasil diperbarui", data: updatedProduct },
+      { message: "Produk berhasil diperbarui", data: transformedProduct },
       { status: 200 }
     );
   } catch (error) {
@@ -130,7 +178,7 @@ export async function DELETE(request, { params }) {
       );
     }
 
-    // Delete the product
+    // Delete the product (categories will be deleted automatically due to cascade)
     await prisma.product.delete({
       where: { id: productId },
     });

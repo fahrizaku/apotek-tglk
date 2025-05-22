@@ -14,92 +14,72 @@ const formatPrice = (price) => {
   }).format(price);
 };
 
-// Komponenen kartu produk obat
-const MedicineCard = ({ medicine }) => {
-  // Mendapatkan media utama (media pertama sebagai gambar utama)
-  const getMainImage = () => {
-    // Jika memiliki media array, gunakan URL dari media pertama jika itu gambar
-    if (medicine.media && medicine.media.length > 0) {
-      // Cari media pertama yang berupa gambar
-      const firstImage = medicine.media.find((item) => item.type === "image");
-      if (firstImage) {
-        return firstImage.url;
-      }
-    }
-    // Fallback ke placeholder jika media tidak ada atau tidak ada gambar
-    return "/placeholder-medicine.jpg";
-  };
-
+// Komponenen kartu produk
+const ProductCard = ({ product }) => {
   return (
-    <Link href={`/products/${medicine.id}`}>
+    <Link href={`/products/${product.id}`}>
       <div className="bg-white rounded-lg overflow-hidden shadow-sm border border-gray-100 hover:shadow-md transition-shadow cursor-pointer">
         <div className="relative">
           <Image
-            src={getMainImage()}
-            alt={medicine.name}
+            src={product.mediaUrl || "/placeholder-product.jpg"}
+            alt={product.name}
             width={500}
             height={500}
             className="w-full h-40 object-cover"
             priority
           />
-          {medicine.isNewArrival && (
+          {product.isNewArrival && (
             <div className="absolute top-2 left-2 bg-green-500 text-white text-xs font-medium px-2 py-1 rounded">
               Produk Baru
             </div>
           )}
-          {medicine.discountPrice && (
+          {product.discountPrice && (
             <div className="absolute top-2 right-2 bg-red-500 text-white text-xs font-medium px-2 py-1 rounded">
               {Math.round(
-                ((medicine.price - medicine.discountPrice) / medicine.price) *
-                  100
+                ((product.price - product.discountPrice) / product.price) * 100
               )}
               % OFF
-            </div>
-          )}
-          {medicine.needsPrescription && (
-            <div className="absolute bottom-2 left-2 bg-blue-500 text-white text-xs font-medium px-2 py-1 rounded">
-              Resep
             </div>
           )}
         </div>
 
         <div className="p-3">
           <h3 className="font-medium text-gray-800 mb-2 line-clamp-2">
-            {medicine.name}
+            {product.name}
           </h3>
 
           <div className="flex items-center mb-2">
             <div className="flex text-yellow-400">
-              {"★".repeat(Math.floor(medicine.rating || 0))}
-              {"☆".repeat(5 - Math.floor(medicine.rating || 0))}
+              {"★".repeat(Math.floor(product.rating || 0))}
+              {"☆".repeat(5 - Math.floor(product.rating || 0))}
             </div>
             <span className="text-xs text-gray-500 ml-1">
-              ({medicine.reviewCount || 0})
+              ({product.reviewCount || 0})
             </span>
           </div>
 
           <div className="mb-3">
-            {medicine.stock <= 0 && (
+            {product.stock <= 0 && (
               <div className="text-xs text-red-500 font-medium mb-1">
                 Stok Habis
               </div>
             )}
-            {medicine.discountPrice ? (
+            {product.discountPrice ? (
               <div className="flex flex-col">
                 <span className="text-xs text-gray-500 line-through">
-                  {formatPrice(medicine.price)}
+                  {formatPrice(product.price)}
                 </span>
                 <span className="font-semibold text-red-600">
-                  {formatPrice(medicine.discountPrice)}
+                  {formatPrice(product.discountPrice)}
                 </span>
               </div>
             ) : (
               <span className="font-semibold text-gray-800">
-                {formatPrice(medicine.price)}
+                {formatPrice(product.price)}
               </span>
             )}
             <div className="text-xs text-gray-500">
-              per {medicine.unit || "kemasan"}
+              per {product.unit || "kemasan"}
             </div>
           </div>
         </div>
@@ -108,9 +88,9 @@ const MedicineCard = ({ medicine }) => {
   );
 };
 
-// Halaman produk apotek
-export default function MedicinePage() {
-  const [medicines, setMedicines] = useState([]);
+// Halaman produk
+export default function ProductPage() {
+  const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
@@ -123,14 +103,14 @@ export default function MedicinePage() {
 
   // Fetch data from API
   useEffect(() => {
-    const fetchMedicines = async () => {
+    const fetchProducts = async () => {
       setLoading(true);
       try {
         const response = await fetch("/api/products");
         const data = await response.json();
 
         if (data.data) {
-          setMedicines(data.data);
+          setProducts(data.data);
           setSearchResults(data.data);
           setPagination(
             data.meta || {
@@ -142,13 +122,13 @@ export default function MedicinePage() {
           );
         }
       } catch (error) {
-        console.error("Error fetching medicines:", error);
+        console.error("Error fetching products:", error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchMedicines();
+    fetchProducts();
   }, []);
 
   const handleSearch = async (e) => {
@@ -156,7 +136,7 @@ export default function MedicinePage() {
 
     if (searchQuery.trim() === "") {
       // If search is empty, reset to original data
-      setSearchResults(medicines);
+      setSearchResults(products);
       return;
     }
 
@@ -180,13 +160,13 @@ export default function MedicinePage() {
         );
       }
     } catch (error) {
-      console.error("Error searching medicines:", error);
+      console.error("Error searching products:", error);
       // Fallback to client-side filtering if API search fails
       const search = searchQuery.toLowerCase();
-      const results = medicines.filter(
-        (medicine) =>
-          medicine.name.toLowerCase().includes(search) ||
-          medicine.category.toLowerCase().includes(search)
+      const results = products.filter(
+        (product) =>
+          product.name.toLowerCase().includes(search) ||
+          product.category.toLowerCase().includes(search)
       );
       setSearchResults(results);
     } finally {
@@ -200,8 +180,8 @@ export default function MedicinePage() {
         Kesehatan Sampai ke Rumah Anda
       </h1>
       <p className="text-xs md:text-sm text-gray-500 mb-4">
-        Kami siap mengantarkan obat-obatan dan kebutuhan kesehatan langsung ke
-        pintu rumah Anda
+        Kami siap mengantarkan produk dan kebutuhan kesehatan langsung ke pintu
+        rumah Anda
       </p>
 
       {/* Search Bar */}
@@ -209,7 +189,7 @@ export default function MedicinePage() {
         <form onSubmit={handleSearch} className="relative">
           <input
             type="text"
-            placeholder="Cari obat, vitamin, atau kebutuhan kesehatan..."
+            placeholder="Cari produk, vitamin, atau kebutuhan kesehatan..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full p-3 pl-10 pr-12 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
@@ -262,8 +242,8 @@ export default function MedicinePage() {
               </p>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-              {searchResults.map((medicine) => (
-                <MedicineCard key={medicine.id} medicine={medicine} />
+              {searchResults.map((product) => (
+                <ProductCard key={product.id} product={product} />
               ))}
             </div>
           </>

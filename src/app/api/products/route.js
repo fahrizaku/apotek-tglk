@@ -1,9 +1,7 @@
-// This file would be saved as /src/app/api/foods/route.js
-
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
-// GET - Fetch all foods or filter by category
+// GET - Fetch all products or filter by category
 export async function GET(request) {
   try {
     // Get URL parameters
@@ -33,26 +31,18 @@ export async function GET(request) {
     // Get total count for pagination
     const totalCount = await prisma.product.count({ where });
 
-    // Get the foods with their media and variants
-    const foods = await prisma.product.findMany({
+    // Get the products (without media and variants as they no longer exist)
+    const products = await prisma.product.findMany({
       where,
-      include: {
-        media: true,
-        variants: {
-          include: {
-            media: true,
-          },
-        },
-      },
       skip,
       take: pageSize,
       orderBy: { createdAt: "desc" },
     });
 
-    // Return the foods with pagination metadata
+    // Return the products with pagination metadata
     return NextResponse.json(
       {
-        data: foods,
+        data: products,
         meta: {
           page: parseInt(page),
           pageSize,
@@ -63,7 +53,7 @@ export async function GET(request) {
       { status: 200 }
     );
   } catch (error) {
-    console.error("Error fetching foods:", error);
+    console.error("Error fetching products:", error);
     return NextResponse.json(
       {
         message: "Terjadi kesalahan saat mengambil data produk",

@@ -26,47 +26,7 @@ model Product {
   stock         Int       @default(0)
   unit          String    @default("porsi")
   description   String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  
-  // Relations
-  media         Media[]
-  variants      Variant[]
-}
-
-model Variant {
-  id            Int       @id @default(autoincrement())
-  name          String
-  price         Int
-  discountPrice Int?
-  stock         Int       @default(0)
-  description   String?
-  thumbnail     String?
-  
-  // Relations
-  product          Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
-  productId        Int
-  media         Media[]
-
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-}
-
-model Media {
-  id            Int       @id @default(autoincrement())
-  type          String    @default("image") // "image" or "video"
-  url           String
-  caption       String?
-  thumbnail     String?
-  
-  // Relations to Food (optional)
-  product          Product?     @relation(fields: [productId], references: [id], onDelete: Cascade)
-  productId        Int?
-  
-  // Relations to Variant (optional)
-  variant       Variant?  @relation(fields: [variantId], references: [id], onDelete: Cascade)
-  variantId     Int?
-  
+  mediaUrl      String?   // Stores the primary image URL
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 }

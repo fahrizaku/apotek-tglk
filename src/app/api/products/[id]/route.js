@@ -1,12 +1,10 @@
-// This file would be saved as /src/app/api/products/[id]/route.js
-
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
 // GET - Fetch a single product by ID
 export async function GET(request, { params }) {
   try {
-    const { id } = await params;
+    const { id } = params;
     const productId = parseInt(id);
 
     if (isNaN(productId)) {
@@ -18,14 +16,6 @@ export async function GET(request, { params }) {
 
     const product = await prisma.product.findUnique({
       where: { id: productId },
-      include: {
-        media: true,
-        variants: {
-          include: {
-            media: true,
-          },
-        },
-      },
     });
 
     if (!product) {
@@ -42,11 +32,17 @@ export async function GET(request, { params }) {
       rating: product.rating || 0,
       reviewCount: product.reviewCount || 0,
       description: product.description || "-",
-      variants: product.variants.map((variant) => ({
-        ...variant,
-        description: variant.description || "-",
-        stock: variant.stock ?? 0,
-      })),
+      // Add a media array with the mediaUrl if it exists
+      media: product.mediaUrl
+        ? [
+            {
+              url: product.mediaUrl,
+              type: "image",
+            },
+          ]
+        : [],
+      // Empty variants array for backward compatibility with frontend
+      variants: [],
     };
 
     return NextResponse.json(processedProduct, { status: 200 });

@@ -8,9 +8,7 @@ import {
   ShoppingCart,
   MinusCircle,
   PlusCircle,
-  Link,
 } from "lucide-react";
-import MediaGallery from "./_components/MediaGallery";
 
 // Fungsi untuk memformat harga
 const formatPrice = (price) => {
@@ -28,8 +26,6 @@ export default function ProductDetailPage() {
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
-  const [selectedVariant, setSelectedVariant] = useState(null);
-  const [mediaToDisplay, setMediaToDisplay] = useState([]);
   const [error, setError] = useState(null);
 
   useEffect(() => {
@@ -38,7 +34,7 @@ export default function ProductDetailPage() {
       setError(null);
 
       try {
-        const response = await fetch(`/api/admin/products/${id}`);
+        const response = await fetch(`/api/products/${id}`);
 
         if (!response.ok) {
           if (response.status === 404) {
@@ -52,16 +48,6 @@ export default function ProductDetailPage() {
 
         const foundProduct = await response.json();
         setProduct(foundProduct);
-
-        if (foundProduct) {
-          // Set default variant if available
-          if (foundProduct.variants && foundProduct.variants.length > 0) {
-            setSelectedVariant(foundProduct.variants[0]);
-          }
-
-          // Initialize media
-          setMediaToDisplay(foundProduct.media || []);
-        }
       } catch (error) {
         console.error("Error fetching product:", error);
         setError("Terjadi kesalahan saat mengambil data");
@@ -75,70 +61,15 @@ export default function ProductDetailPage() {
     }
   }, [id]);
 
-  // Update displayed media when variant changes
-  useEffect(() => {
-    if (selectedVariant && selectedVariant.media) {
-      // Show variant media first, followed by product media (excluding duplicates)
-      const variantMedia = selectedVariant.media || [];
-      const productMedia = product.media || [];
-
-      // Combine the media, prioritizing variant media
-      const combinedMedia = [
-        ...variantMedia,
-        ...productMedia.filter(
-          (pm) => !variantMedia.some((vm) => vm.url === pm.url)
-        ),
-      ];
-
-      setMediaToDisplay(combinedMedia);
-    } else if (product) {
-      setMediaToDisplay(product.media || []);
-    }
-  }, [selectedVariant, product]);
-
   const handleGoBack = () => {
     router.back();
   };
 
   const handleQuantityChange = (amount) => {
     const newQuantity = quantity + amount;
-    const currentStock = selectedVariant
-      ? selectedVariant.stock
-      : product.stock;
-
-    if (newQuantity >= 1 && (!currentStock || newQuantity <= currentStock)) {
+    if (newQuantity >= 1 && (!product.stock || newQuantity <= product.stock)) {
       setQuantity(newQuantity);
     }
-  };
-
-  const handleVariantChange = (variant) => {
-    setSelectedVariant(variant);
-
-    // Reset quantity if it exceeds variant stock
-    if (variant.stock && quantity > variant.stock) {
-      setQuantity(1);
-    }
-  };
-
-  // Calculate current price based on selected variant
-  const getCurrentPrice = () => {
-    if (selectedVariant) {
-      return selectedVariant.discountPrice || selectedVariant.price;
-    }
-    return product.discountPrice || product.price;
-  };
-
-  // Calculate original price based on selected variant
-  const getOriginalPrice = () => {
-    if (selectedVariant) {
-      return selectedVariant.discountPrice ? selectedVariant.price : null;
-    }
-    return product.discountPrice ? product.price : null;
-  };
-
-  // Get current stock based on selected variant
-  const getCurrentStock = () => {
-    return selectedVariant ? selectedVariant.stock : product.stock;
   };
 
   if (loading) {
@@ -196,43 +127,41 @@ export default function ProductDetailPage() {
       </button>
 
       <div className="flex flex-col md:flex-row gap-4 md:gap-6">
-        {/* Media Gallery */}
+        {/* Product Image */}
         <div className="w-full md:w-1/2 mb-6 md:mb-0">
-          <MediaGallery media={mediaToDisplay} />
+          <div className="relative rounded-lg overflow-hidden shadow-sm border border-gray-100">
+            <Image
+              src={product.mediaUrl || "/placeholder-product.jpg"}
+              alt={product.name}
+              width={800}
+              height={600}
+              className="w-full h-64 sm:h-80 md:h-96 object-cover"
+              priority
+            />
+          </div>
 
           {/* Badges */}
           <div className="flex flex-wrap gap-2 mt-2">
             {product.isNewArrival && (
               <div className="bg-green-100 text-green-800 text-xs font-medium px-2 py-1 rounded">
-                Menu Baru
+                Produk Baru
               </div>
             )}
-            {selectedVariant && selectedVariant.discountPrice ? (
+            {product.discountPrice && (
               <div className="bg-red-100 text-red-800 text-xs font-medium px-2 py-1 rounded">
                 {Math.round(
-                  ((selectedVariant.price - selectedVariant.discountPrice) /
-                    selectedVariant.price) *
+                  ((product.price - product.discountPrice) / product.price) *
                     100
                 )}
                 % Diskon
               </div>
-            ) : (
-              product.discountPrice && (
-                <div className="bg-red-100 text-red-800 text-xs font-medium px-2 py-1 rounded">
-                  {Math.round(
-                    ((product.price - product.discountPrice) / product.price) *
-                      100
-                  )}
-                  % Diskon
-                </div>
-              )
             )}
-            {getCurrentStock() <= 10 && getCurrentStock() > 0 && (
+            {product.stock <= 10 && product.stock > 0 && (
               <div className="bg-orange-100 text-orange-800 text-xs font-medium px-2 py-1 rounded">
-                Sisa {getCurrentStock()} {product.unit || "porsi"}
+                Sisa {product.stock} {product.unit || "porsi"}
               </div>
             )}
-            {getCurrentStock() <= 0 && (
+            {product.stock <= 0 && (
               <div className="bg-red-100 text-red-800 text-xs font-medium px-2 py-1 rounded">
                 Stok Habis
               </div>
@@ -248,20 +177,20 @@ export default function ProductDetailPage() {
               {product.name}
             </h1>
 
-            {/* Harga Produk (Dipindahkan ke sini, di bawah nama produk) */}
+            {/* Harga Produk */}
             <div className="mt-2">
-              {getOriginalPrice() ? (
+              {product.discountPrice ? (
                 <div className="flex flex-col">
                   <span className="text-sm sm:text-base text-gray-500 line-through">
-                    {formatPrice(getOriginalPrice())}
+                    {formatPrice(product.price)}
                   </span>
                   <span className="text-xl sm:text-2xl font-bold text-red-600">
-                    {formatPrice(getCurrentPrice())}
+                    {formatPrice(product.discountPrice)}
                   </span>
                 </div>
               ) : (
                 <span className="text-xl sm:text-2xl font-bold text-gray-800">
-                  {formatPrice(getCurrentPrice())}
+                  {formatPrice(product.price)}
                 </span>
               )}
               <div className="text-xs sm:text-sm text-gray-500 mt-1">
@@ -295,61 +224,13 @@ export default function ProductDetailPage() {
             </div>
           </div>
 
-          {/* Variants Selection */}
-          {product.variants && product.variants.length > 0 && (
-            <div className="border-b border-gray-200 pb-3 mb-3">
-              <h3 className="text-base sm:text-lg font-medium text-gray-800 mb-2">
-                Varian
-              </h3>
-              <div className="flex flex-wrap gap-2">
-                {product.variants.map((variant, index) => (
-                  <button
-                    key={index}
-                    className={`px-3 py-2 rounded-md border ${
-                      selectedVariant && selectedVariant.name === variant.name
-                        ? "border-orange-500 bg-orange-50"
-                        : "border-gray-300 hover:border-gray-400"
-                    } ${
-                      variant.stock <= 0
-                        ? "opacity-50 cursor-not-allowed"
-                        : "cursor-pointer"
-                    }`}
-                    onClick={() =>
-                      variant.stock > 0 && handleVariantChange(variant)
-                    }
-                    disabled={variant.stock <= 0}
-                  >
-                    <div className="flex items-center gap-2">
-                      {variant.thumbnail && (
-                        <div className="w-6 h-6 rounded-full overflow-hidden border border-gray-200">
-                          <Image
-                            src={variant.thumbnail}
-                            alt={variant.name}
-                            width={24}
-                            height={24}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                      )}
-                      <span className="text-sm font-medium">
-                        {variant.name}
-                      </span>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
           {/* Deskripsi Produk */}
           <div className="border-b border-gray-200 pb-3 mb-3">
             <h3 className="text-base sm:text-lg font-medium text-gray-800 mb-1 sm:mb-2">
               Deskripsi
             </h3>
             <p className="text-sm sm:text-base text-gray-600">
-              {selectedVariant && selectedVariant.description
-                ? selectedVariant.description
-                : product.description || "-"}
+              {product.description || "-"}
             </p>
           </div>
 
@@ -360,23 +241,23 @@ export default function ProductDetailPage() {
             </h3>
             <p
               className={`text-sm sm:text-base ${
-                getCurrentStock() <= 0
+                product.stock <= 0
                   ? "text-red-500 font-medium"
-                  : getCurrentStock() <= 10
+                  : product.stock <= 10
                   ? "text-orange-500 font-medium"
                   : "text-green-600 font-medium"
               }`}
             >
-              {getCurrentStock() <= 0
+              {product.stock <= 0
                 ? "Stok Habis"
-                : getCurrentStock() <= 10
-                ? `Sisa ${getCurrentStock()} ${product.unit || "porsi"}`
+                : product.stock <= 10
+                ? `Sisa ${product.stock} ${product.unit || "porsi"}`
                 : "Stok Tersedia"}
             </p>
           </div>
 
           {/* Quantity selector */}
-          {getCurrentStock() > 0 && (
+          {product.stock > 0 && (
             <div className="border-b border-gray-200 pb-3 mb-4">
               <h3 className="text-base sm:text-lg font-medium text-gray-800 mb-1 sm:mb-2">
                 Jumlah
@@ -396,11 +277,9 @@ export default function ProductDetailPage() {
                 <span className="mx-3 w-8 text-center">{quantity}</span>
                 <button
                   onClick={() => handleQuantityChange(1)}
-                  disabled={
-                    getCurrentStock() !== null && quantity >= getCurrentStock()
-                  }
+                  disabled={product.stock !== null && quantity >= product.stock}
                   className={`p-1 ${
-                    getCurrentStock() !== null && quantity >= getCurrentStock()
+                    product.stock !== null && quantity >= product.stock
                       ? "text-gray-300"
                       : "text-gray-500 hover:text-gray-700"
                   }`}
@@ -413,15 +292,11 @@ export default function ProductDetailPage() {
 
           {/* Informasi Pembelian */}
           <div className="bg-gray-50 rounded-lg p-3 sm:p-4">
-            {getCurrentStock() > 0 ? (
+            {product.stock > 0 ? (
               <button
                 className="w-full bg-orange-600 hover:bg-orange-700 text-white py-2 sm:py-3 rounded-lg flex items-center justify-center text-sm sm:text-base font-medium"
                 onClick={() =>
-                  alert(
-                    `Menambahkan ${quantity} ${product.name}${
-                      selectedVariant ? ` (${selectedVariant.name})` : ""
-                    } ke keranjang`
-                  )
+                  alert(`Menambahkan ${quantity} ${product.name} ke keranjang`)
                 }
               >
                 <ShoppingCart className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />

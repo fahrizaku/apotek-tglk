@@ -132,31 +132,7 @@ exports.Prisma.ProductScalarFieldEnum = {
   stock: 'stock',
   unit: 'unit',
   description: 'description',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
-};
-
-exports.Prisma.VariantScalarFieldEnum = {
-  id: 'id',
-  name: 'name',
-  price: 'price',
-  discountPrice: 'discountPrice',
-  stock: 'stock',
-  description: 'description',
-  thumbnail: 'thumbnail',
-  productId: 'productId',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
-};
-
-exports.Prisma.MediaScalarFieldEnum = {
-  id: 'id',
-  type: 'type',
-  url: 'url',
-  caption: 'caption',
-  thumbnail: 'thumbnail',
-  productId: 'productId',
-  variantId: 'variantId',
+  mediaUrl: 'mediaUrl',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 };
@@ -178,9 +154,7 @@ exports.Prisma.NullsOrder = {
 
 
 exports.Prisma.ModelName = {
-  Product: 'Product',
-  Variant: 'Variant',
-  Media: 'Media'
+  Product: 'Product'
 };
 
 /**

@@ -1,141 +1,249 @@
 "use client";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
+import {
+  Search,
+  Plus,
+  Edit,
+  Trash,
+  RefreshCw,
+  ChevronLeft,
+  ChevronRight,
+  Filter,
+  Loader2,
+} from "lucide-react";
 
-export default function FoodProductsList() {
-  const [foods, setFoods] = useState([]);
+// Fungsi untuk memformat harga
+const formatPrice = (price) => {
+  return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(price);
+};
+
+// Daftar kategori produk (contoh)
+const PRODUCT_CATEGORIES = [
+  "Semua Kategori",
+  "Makanan",
+  "Minuman",
+  "Obat",
+  "Vitamin",
+  "Kesehatan",
+  "Perawatan Tubuh",
+  "Perawatan Wajah",
+  "Lainnya",
+];
+
+export default function AdminProductsPage() {
+  const router = useRouter();
+  const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("Semua Kategori");
+  const [pagination, setPagination] = useState({
+    page: 1,
+    pageSize: 10,
+    totalCount: 0,
+    totalPages: 0,
+  });
+  const [deleteModal, setDeleteModal] = useState({
+    isOpen: false,
+    productId: null,
+    productName: "",
+  });
+  const [message, setMessage] = useState({ type: "", text: "" });
 
-  // Fetch all food products
-  useEffect(() => {
-    const fetchFoods = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch("/api/admin/products");
-
-        if (!response.ok) {
-          throw new Error("Failed to fetch products");
-        }
-
-        const data = await response.json();
-        setFoods(data);
-      } catch (err) {
-        setError(err.message);
-        console.error("Error fetching foods:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchFoods();
-  }, []);
-
-  // Format currency
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat("id-ID", {
-      style: "currency",
-      currency: "IDR",
-      minimumFractionDigits: 0,
-    }).format(amount);
-  };
-
-  // Handle delete confirmation
-  const confirmDelete = (id) => {
-    setDeleteConfirm(id);
-  };
-
-  // Cancel delete
-  const cancelDelete = () => {
-    setDeleteConfirm(null);
-  };
-
-  // Handle actual delete
-  const handleDelete = async (id) => {
+  // Fetch products from API
+  const fetchProducts = async () => {
+    setLoading(true);
     try {
-      const response = await fetch(`/api/admin/products/${id}`, {
-        method: "DELETE",
-      });
+      // Prepare URL with filters
+      let url = `/api/admin/products?page=${pagination.page}`;
 
-      if (!response.ok) {
-        throw new Error("Failed to delete product");
+      if (searchQuery) {
+        url += `&search=${encodeURIComponent(searchQuery)}`;
       }
 
-      // Update local state by removing the deleted item
-      setFoods(foods.filter((food) => food.id !== id));
-      setDeleteConfirm(null);
-    } catch (err) {
-      console.error("Error deleting food:", err);
-      alert("Terjadi kesalahan saat menghapus produk.");
+      if (selectedCategory && selectedCategory !== "Semua Kategori") {
+        url += `&category=${encodeURIComponent(selectedCategory)}`;
+      }
+
+      const response = await fetch(url);
+      const data = await response.json();
+
+      if (data.data) {
+        setProducts(data.data);
+        setPagination({
+          ...pagination,
+          totalCount: data.meta.totalCount,
+          totalPages: data.meta.totalPages,
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching products:", error);
+      setMessage({
+        type: "error",
+        text: "Terjadi kesalahan saat mengambil data produk",
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Display loading state
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 p-6 flex justify-center items-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
-          <p className="mt-4 text-gray-700">Memuat data produk...</p>
-        </div>
-      </div>
-    );
-  }
+  // Load products on initial load and when filters change
+  useEffect(() => {
+    fetchProducts();
+  }, [pagination.page, selectedCategory]);
 
-  // Display error state
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gray-50 p-6">
-        <div className="max-w-5xl mx-auto bg-white shadow-md rounded-lg p-6">
-          <div className="text-center text-red-600 p-4">
-            <h2 className="text-xl font-bold mb-2">Terjadi Kesalahan</h2>
-            <p>{error}</p>
-            <button
-              onClick={() => window.location.reload()}
-              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-            >
-              Coba Lagi
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // Handle search
+  const handleSearch = (e) => {
+    e.preventDefault();
+    // Reset to page 1 when searching
+    setPagination({ ...pagination, page: 1 });
+    fetchProducts();
+  };
+
+  // Handle category change
+  const handleCategoryChange = (e) => {
+    setSelectedCategory(e.target.value);
+    // Reset to page 1 when changing category
+    setPagination({ ...pagination, page: 1 });
+  };
+
+  // Handle pagination
+  const handlePageChange = (newPage) => {
+    if (newPage > 0 && newPage <= pagination.totalPages) {
+      setPagination({ ...pagination, page: newPage });
+    }
+  };
+
+  // Handle delete product
+  const handleDelete = async () => {
+    if (!deleteModal.productId) return;
+
+    try {
+      const response = await fetch(
+        `/api/admin/products/${deleteModal.productId}`,
+        {
+          method: "DELETE",
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Gagal menghapus produk");
+      }
+
+      setMessage({
+        type: "success",
+        text: "Produk berhasil dihapus",
+      });
+
+      // Close modal and refresh products
+      setDeleteModal({ isOpen: false, productId: null, productName: "" });
+      fetchProducts();
+    } catch (error) {
+      console.error("Error deleting product:", error);
+      setMessage({
+        type: "error",
+        text: error.message || "Terjadi kesalahan saat menghapus produk",
+      });
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold text-gray-800">
-            Daftar Produk Makanan
-          </h1>
-          <Link
-            href="/add-food"
-            className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
-          >
-            + Tambah Produk
-          </Link>
+    <div className="max-w-7xl mx-auto px-4 py-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-800 mb-2 sm:mb-0">
+          Kelola Produk
+        </h1>
+        <Link
+          href="/admin/products/add"
+          className="inline-flex items-center justify-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md shadow-sm text-sm font-medium"
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Tambah Produk Baru
+        </Link>
+      </div>
+
+      {/* Alert Message */}
+      {message.text && (
+        <div
+          className={`p-4 mb-6 rounded-lg ${
+            message.type === "success"
+              ? "bg-green-100 text-green-800"
+              : "bg-red-100 text-red-800"
+          }`}
+        >
+          {message.text}
         </div>
+      )}
 
-        {/* Empty state */}
-        {foods.length === 0 && (
-          <div className="bg-white shadow-md rounded-lg p-8 text-center">
-            <p className="text-gray-600 mb-4">
-              Belum ada produk yang ditambahkan
-            </p>
-            <Link
-              href="/add-food"
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-            >
-              Tambah Produk Pertama
-            </Link>
+      {/* Filter and Search */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
+        <div className="p-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4">
+            {/* Search */}
+            <div className="flex-1 mb-4 sm:mb-0">
+              <form onSubmit={handleSearch} className="relative">
+                <input
+                  type="text"
+                  placeholder="Cari produk..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full p-2 pl-10 pr-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <button
+                  type="submit"
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                </button>
+              </form>
+            </div>
+
+            {/* Category Filter */}
+            <div className="flex items-center">
+              <Filter className="text-gray-400 w-4 h-4 mr-2" />
+              <select
+                value={selectedCategory}
+                onChange={handleCategoryChange}
+                className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+              >
+                {PRODUCT_CATEGORIES.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
-        )}
+        </div>
+      </div>
 
-        {/* Product list */}
-        {foods.length > 0 && (
-          <div className="bg-white shadow-md rounded-lg overflow-hidden">
+      {/* Product List */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        {loading ? (
+          <div className="flex items-center justify-center p-10">
+            <Loader2 className="animate-spin h-8 w-8 text-green-500" />
+            <span className="ml-2 text-gray-500">Memuat produk...</span>
+          </div>
+        ) : products.length === 0 ? (
+          <div className="p-10 text-center">
+            <p className="text-gray-500 mb-2">
+              Tidak ada produk yang ditemukan
+            </p>
+            <p className="text-sm text-gray-400">
+              Coba ubah filter atau tambahkan produk baru
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* Table Header */}
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
@@ -166,142 +274,228 @@ export default function FoodProductsList() {
                     </th>
                     <th
                       scope="col"
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    >
-                      Varian
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
                     >
                       Aksi
                     </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {foods.map((food) => (
-                    <tr key={food.id} className="hover:bg-gray-50">
+                  {products.map((product) => (
+                    <tr key={product.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
-                          <div className="flex-shrink-0 h-10 w-10">
-                            {food.media && food.media[0] ? (
-                              <img
-                                className="h-10 w-10 rounded-full object-cover"
-                                src={
-                                  food.media[0].thumbnail || food.media[0].url
-                                }
-                                alt={food.name}
-                              />
-                            ) : (
-                              <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
-                                <span className="text-gray-500 text-xs">
-                                  No img
-                                </span>
-                              </div>
-                            )}
+                          <div className="h-10 w-10 flex-shrink-0 mr-3">
+                            <Image
+                              src={
+                                product.mediaUrl || "/placeholder-product.jpg"
+                              }
+                              alt={product.name}
+                              width={40}
+                              height={40}
+                              className="h-10 w-10 rounded-md object-cover"
+                            />
                           </div>
-                          <div className="ml-4">
-                            <div className="text-sm font-medium text-gray-900">
-                              {food.name}
-                            </div>
-                            {food.isNewArrival && (
-                              <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                Baru
-                              </span>
-                            )}
+                          <div className="text-sm font-medium text-gray-900 line-clamp-1 max-w-xs">
+                            {product.name}
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                          {food.category}
-                        </div>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {product.category}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        {food.discountPrice ? (
+                        {product.discountPrice ? (
                           <div>
-                            <div className="text-sm font-medium text-gray-900">
-                              {formatCurrency(food.discountPrice)}
-                            </div>
                             <div className="text-sm text-gray-500 line-through">
-                              {formatCurrency(food.price)}
+                              {formatPrice(product.price)}
+                            </div>
+                            <div className="text-sm font-medium text-red-600">
+                              {formatPrice(product.discountPrice)}
                             </div>
                           </div>
                         ) : (
                           <div className="text-sm text-gray-900">
-                            {formatCurrency(food.price)}
+                            {formatPrice(product.price)}
                           </div>
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                          {food.stock} {food.unit}
+                        <div
+                          className={`text-sm ${
+                            product.stock <= 0
+                              ? "text-red-600 font-medium"
+                              : product.stock <= 10
+                              ? "text-orange-600 font-medium"
+                              : "text-green-600"
+                          }`}
+                        >
+                          {product.stock} {product.unit}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                          {food.variants ? food.variants.length : 0} varian
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex space-x-2">
-                          <button
-                            className="text-blue-600 hover:text-blue-900"
-                            onClick={() => alert("Fitur detail belum tersedia")}
-                          >
-                            Detail
-                          </button>
-                          <Link
-                            href={`/admin/products/edit-product/${food.id}`}
-                            className="text-green-600 hover:text-green-900"
-                          >
-                            Edit
-                          </Link>
-                          <button
-                            className="text-red-600 hover:text-red-900"
-                            onClick={() => confirmDelete(food.id)}
-                          >
-                            Hapus
-                          </button>
-                        </div>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <Link
+                          href={`/admin/products/edit/${product.id}`}
+                          className="text-green-600 hover:text-green-900 mr-3"
+                        >
+                          <Edit className="h-4 w-4 inline" />
+                        </Link>
+                        <button
+                          onClick={() =>
+                            setDeleteModal({
+                              isOpen: true,
+                              productId: product.id,
+                              productName: product.name,
+                            })
+                          }
+                          className="text-red-600 hover:text-red-900"
+                        >
+                          <Trash className="h-4 w-4 inline" />
+                        </button>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-          </div>
-        )}
 
-        {/* Delete confirmation modal */}
-        {deleteConfirm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 max-w-md w-full">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
-                Konfirmasi Hapus
-              </h3>
-              <p className="text-gray-600 mb-6">
-                Apakah Anda yakin ingin menghapus produk ini? Tindakan ini tidak
-                dapat dibatalkan.
-              </p>
-              <div className="flex justify-end space-x-3">
+            {/* Pagination */}
+            <div className="px-6 py-3 flex items-center justify-between border-t border-gray-200">
+              <div className="flex-1 flex justify-between sm:hidden">
                 <button
-                  onClick={cancelDelete}
-                  className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                  onClick={() => handlePageChange(pagination.page - 1)}
+                  disabled={pagination.page === 1}
+                  className={`relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md ${
+                    pagination.page === 1
+                      ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                      : "bg-white text-gray-700 hover:bg-gray-50"
+                  }`}
                 >
-                  Batal
+                  Sebelumnya
                 </button>
                 <button
-                  onClick={() => handleDelete(deleteConfirm)}
-                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                  onClick={() => handlePageChange(pagination.page + 1)}
+                  disabled={pagination.page === pagination.totalPages}
+                  className={`relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md ${
+                    pagination.page === pagination.totalPages
+                      ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                      : "bg-white text-gray-700 hover:bg-gray-50"
+                  }`}
+                >
+                  Berikutnya
+                </button>
+              </div>
+              <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm text-gray-700">
+                    Menampilkan{" "}
+                    <span className="font-medium">{products.length}</span> dari{" "}
+                    <span className="font-medium">{pagination.totalCount}</span>{" "}
+                    produk
+                  </p>
+                </div>
+                <div>
+                  <nav
+                    className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px"
+                    aria-label="Pagination"
+                  >
+                    <button
+                      onClick={() => handlePageChange(pagination.page - 1)}
+                      disabled={pagination.page === 1}
+                      className={`relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium ${
+                        pagination.page === 1
+                          ? "text-gray-300 cursor-not-allowed"
+                          : "text-gray-500 hover:bg-gray-50"
+                      }`}
+                    >
+                      <ChevronLeft className="h-5 w-5" />
+                    </button>
+                    {Array.from({ length: pagination.totalPages }).map(
+                      (_, index) => (
+                        <button
+                          key={index}
+                          onClick={() => handlePageChange(index + 1)}
+                          className={`relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium ${
+                            pagination.page === index + 1
+                              ? "z-10 bg-green-50 border-green-500 text-green-600"
+                              : "bg-white text-gray-500 hover:bg-gray-50"
+                          }`}
+                        >
+                          {index + 1}
+                        </button>
+                      )
+                    )}
+                    <button
+                      onClick={() => handlePageChange(pagination.page + 1)}
+                      disabled={pagination.page === pagination.totalPages}
+                      className={`relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium ${
+                        pagination.page === pagination.totalPages
+                          ? "text-gray-300 cursor-not-allowed"
+                          : "text-gray-500 hover:bg-gray-50"
+                      }`}
+                    >
+                      <ChevronRight className="h-5 w-5" />
+                    </button>
+                  </nav>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Delete Confirmation Modal */}
+      {deleteModal.isOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
+
+            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div className="sm:flex sm:items-start">
+                  <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
+                    <Trash className="h-6 w-6 text-red-600" />
+                  </div>
+                  <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                    <h3 className="text-lg leading-6 font-medium text-gray-900">
+                      Hapus Produk
+                    </h3>
+                    <div className="mt-2">
+                      <p className="text-sm text-gray-500">
+                        Apakah Anda yakin ingin menghapus produk "
+                        {deleteModal.productName}"? Tindakan ini tidak dapat
+                        dibatalkan.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <button
+                  type="button"
+                  onClick={handleDelete}
+                  className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm"
                 >
                   Hapus
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setDeleteModal({
+                      isOpen: false,
+                      productId: null,
+                      productName: "",
+                    })
+                  }
+                  className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                >
+                  Batal
                 </button>
               </div>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

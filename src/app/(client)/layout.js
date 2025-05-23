@@ -1,8 +1,8 @@
 import Navigation from "@/components/Navigation";
 
 export const metadata = {
-  title: "admin",
-  description: "admin panel",
+  title: "Apotek Delivery",
+  description: "Apotek Delivery",
 };
 
 export default function RootLayout({ children }) {

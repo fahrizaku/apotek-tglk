@@ -22,8 +22,8 @@ model Product {
   rating        Float?
   reviewCount   Int      @default(0)
   isNewArrival  Boolean  @default(false)
-  stock         Int      @default(0)
-  unit          String   @default("porsi")
+  stock         Int      @default(20)
+  unit          String   @default("pcs")
   description   String?
   mediaUrl      String? // Stores the primary image URL
   createdAt     DateTime @default(now())

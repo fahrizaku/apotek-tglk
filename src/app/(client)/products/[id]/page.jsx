@@ -1,3 +1,4 @@
+//file: src/app/(client)/products/[id]/page.jsx
 "use client";
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -6,9 +7,13 @@ import {
   ArrowLeft,
   Star,
   ShoppingCart,
-  MinusCircle,
-  PlusCircle,
+  Plus,
+  Minus,
+  Check,
+  Heart,
+  Share2,
 } from "lucide-react";
+import { useCart } from "@/contexts/CartContext";
 
 // Fungsi untuk memformat harga
 const formatPrice = (price) => {
@@ -20,13 +25,67 @@ const formatPrice = (price) => {
   }).format(price);
 };
 
+// Toast notification component
+const Toast = ({ message, type = "success", onClose }) => {
+  useEffect(() => {
+    const timer = setTimeout(onClose, 3000);
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  return (
+    <div
+      className={`fixed top-20 right-4 z-[70] p-4 rounded-lg shadow-lg border max-w-xs ${
+        type === "success"
+          ? "bg-green-50 border-green-200 text-green-800"
+          : "bg-red-50 border-red-200 text-red-800"
+      }`}
+    >
+      <div className="flex items-center gap-2">
+        {type === "success" && <Check className="w-4 h-4" />}
+        <p className="text-sm font-medium">{message}</p>
+      </div>
+    </div>
+  );
+};
+
 export default function ProductDetailPage() {
   const router = useRouter();
   const { id } = useParams();
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [quantity, setQuantity] = useState(1);
   const [error, setError] = useState(null);
+  const [isAddingToCart, setIsAddingToCart] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [toast, setToast] = useState(null);
+
+  const {
+    addToCart,
+    getCartItem,
+    updateQuantity: updateCartQuantity,
+    removeFromCart,
+    getCartItemsCount,
+  } = useCart();
+
+  // Get current cart item for this product
+  const cartItem = getCartItem(product?.id);
+  const currentCartQuantity = cartItem ? cartItem.quantity : 0;
+
+  // Show toast notification
+  const showToast = (message, type = "success") => {
+    setToast({ message, type });
+  };
+
+  // Debug: Monitor cart changes
+  useEffect(() => {
+    if (process.env.NODE_ENV === "development") {
+      console.log("Cart updated:", {
+        productId: product?.id,
+        cartItem,
+        currentCartQuantity,
+        totalCartItems: getCartItemsCount(),
+      });
+    }
+  }, [cartItem, currentCartQuantity, product?.id, getCartItemsCount]);
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -65,10 +124,60 @@ export default function ProductDetailPage() {
     router.back();
   };
 
-  const handleQuantityChange = (amount) => {
-    const newQuantity = quantity + amount;
-    if (newQuantity >= 1 && (!product.stock || newQuantity <= product.stock)) {
-      setQuantity(newQuantity);
+  const handleAddToCart = async () => {
+    if (!product || product.stock <= 0) return;
+
+    setIsAddingToCart(true);
+
+    try {
+      addToCart(product, 1); // Always add 1 item at a time
+      setShowSuccess(true);
+      showToast(`${product.name} ditambahkan ke keranjang`);
+
+      setTimeout(() => setShowSuccess(false), 1500);
+    } catch (error) {
+      console.error("Error adding to cart:", error);
+      showToast("Gagal menambahkan ke keranjang", "error");
+    } finally {
+      setIsAddingToCart(false);
+    }
+  };
+
+  const handleCartQuantityChange = (action) => {
+    if (!product) return;
+
+    if (action === "increase") {
+      if (currentCartQuantity < product.stock) {
+        if (currentCartQuantity === 0) {
+          addToCart(product, 1);
+        } else {
+          updateCartQuantity(product.id, currentCartQuantity + 1);
+        }
+      }
+    } else if (action === "decrease") {
+      if (currentCartQuantity > 1) {
+        updateCartQuantity(product.id, currentCartQuantity - 1);
+      } else if (currentCartQuantity === 1) {
+        removeFromCart(product.id);
+      }
+    }
+  };
+
+  const handleShare = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: product.name,
+          text: `Lihat produk ${product.name} di Trenggalek Apotek`,
+          url: window.location.href,
+        });
+      } catch (error) {
+        console.log("Sharing failed:", error);
+      }
+    } else {
+      // Fallback: copy to clipboard
+      navigator.clipboard.writeText(window.location.href);
+      showToast("Link produk disalin ke clipboard");
     }
   };
 
@@ -118,13 +227,57 @@ export default function ProductDetailPage() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 sm:py-8">
-      <button
-        onClick={handleGoBack}
-        className="flex items-center text-gray-600 hover:text-gray-900 mb-4 sm:mb-6 font-medium"
-      >
-        <ArrowLeft className="h-4 w-4 mr-1" />
-        <span>Kembali</span>
-      </button>
+      {/* Toast Notification */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
+
+      {/* Header with back button and actions */}
+      <div className="flex items-center justify-between mb-4 sm:mb-6">
+        <button
+          onClick={handleGoBack}
+          className="flex items-center text-gray-600 hover:text-gray-900 font-medium"
+        >
+          <ArrowLeft className="h-4 w-4 mr-1" />
+          <span>Kembali</span>
+        </button>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleShare}
+            className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+          >
+            <Share2 className="h-4 w-4 text-gray-600" />
+          </button>
+          <button className="p-2 rounded-full hover:bg-gray-100 transition-colors">
+            <Heart className="h-4 w-4 text-gray-600" />
+          </button>
+        </div>
+      </div>
+
+      {/* Cart Summary Banner */}
+      {getCartItemsCount() > 0 && (
+        <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <ShoppingCart className="w-4 h-4 text-green-600" />
+              <span className="text-sm font-medium text-green-800">
+                {getCartItemsCount()} item dalam keranjang
+              </span>
+            </div>
+            <button
+              onClick={() => router.push("/apotek/cart")}
+              className="text-sm text-green-600 hover:text-green-700 font-medium"
+            >
+              Lihat Keranjang →
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-col md:flex-row gap-4 md:gap-6">
         {/* Product Image */}
@@ -138,6 +291,13 @@ export default function ProductDetailPage() {
               className="w-full h-64 sm:h-80 md:h-96 object-cover"
               priority
             />
+
+            {/* Cart quantity indicator on image */}
+            {currentCartQuantity > 0 && (
+              <div className="absolute top-4 right-4 bg-green-600 text-white text-sm font-bold px-3 py-1 rounded-full">
+                {currentCartQuantity} di keranjang
+              </div>
+            )}
           </div>
 
           {/* Badges */}
@@ -230,7 +390,7 @@ export default function ProductDetailPage() {
               Deskripsi
             </h3>
             <p className="text-sm sm:text-base text-gray-600">
-              {product.description || "-"}
+              {product.description || "Deskripsi produk akan segera tersedia."}
             </p>
           </div>
 
@@ -256,52 +416,96 @@ export default function ProductDetailPage() {
             </p>
           </div>
 
-          {/* Quantity selector */}
-          {product.stock > 0 && (
-            <div className="border-b border-gray-200 pb-3 mb-4">
-              <h3 className="text-base sm:text-lg font-medium text-gray-800 mb-1 sm:mb-2">
-                Jumlah
-              </h3>
-              <div className="flex items-center">
+          {/* Debug info - remove this in production */}
+          {process.env.NODE_ENV === "development" && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded p-2 mb-4 text-xs">
+              <div>Product ID: {product?.id}</div>
+              <div>Cart Item: {cartItem ? "Found" : "Not found"}</div>
+              <div>Current Quantity: {currentCartQuantity}</div>
+              <div>Total Cart Items: {getCartItemsCount()}</div>
+            </div>
+          )}
+
+          {/* Cart Summary Info */}
+          {currentCartQuantity > 0 && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-green-800 font-medium">
+                  {currentCartQuantity} item di keranjang
+                </span>
                 <button
-                  onClick={() => handleQuantityChange(-1)}
-                  disabled={quantity <= 1}
-                  className={`p-1 ${
-                    quantity <= 1
-                      ? "text-gray-300"
-                      : "text-gray-500 hover:text-gray-700"
-                  }`}
+                  onClick={() => router.push("/apotek/cart")}
+                  className="text-green-600 hover:text-green-700 font-medium"
                 >
-                  <MinusCircle className="h-6 w-6" />
-                </button>
-                <span className="mx-3 w-8 text-center">{quantity}</span>
-                <button
-                  onClick={() => handleQuantityChange(1)}
-                  disabled={product.stock !== null && quantity >= product.stock}
-                  className={`p-1 ${
-                    product.stock !== null && quantity >= product.stock
-                      ? "text-gray-300"
-                      : "text-gray-500 hover:text-gray-700"
-                  }`}
-                >
-                  <PlusCircle className="h-6 w-6" />
+                  Lihat Keranjang →
                 </button>
               </div>
             </div>
           )}
 
-          {/* Informasi Pembelian */}
+          {/* Add to Cart Section */}
           <div className="bg-gray-50 rounded-lg p-3 sm:p-4">
             {product.stock > 0 ? (
-              <button
-                className="w-full bg-orange-600 hover:bg-orange-700 text-white py-2 sm:py-3 rounded-lg flex items-center justify-center text-sm sm:text-base font-medium"
-                onClick={() =>
-                  alert(`Menambahkan ${quantity} ${product.name} ke keranjang`)
-                }
-              >
-                <ShoppingCart className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-                <span>Tambahkan ke Keranjang</span>
-              </button>
+              currentCartQuantity > 0 ? (
+                /* Quantity Controls - replaces add to cart button when item is in cart */
+                <div className="w-full py-2 sm:py-3 px-3 sm:px-4 rounded-lg bg-green-50 border border-green-200">
+                  <div className="flex items-center justify-between">
+                    <button
+                      onClick={() => handleCartQuantityChange("decrease")}
+                      className="p-2 rounded-full bg-green-100 text-green-600 hover:bg-green-200 transition-colors"
+                    >
+                      <Minus className="w-5 h-5" />
+                    </button>
+                    <span className="font-medium text-green-600 mx-4 text-lg min-w-[2rem] text-center">
+                      {currentCartQuantity}
+                    </span>
+                    <button
+                      onClick={() => handleCartQuantityChange("increase")}
+                      disabled={currentCartQuantity >= product.stock}
+                      className={`p-2 rounded-full transition-colors ${
+                        currentCartQuantity >= product.stock
+                          ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                          : "bg-green-100 text-green-600 hover:bg-green-200"
+                      }`}
+                    >
+                      <Plus className="w-5 h-5" />
+                    </button>
+                  </div>
+                  <div className="text-center text-xs text-green-600 mt-1">
+                    Di Keranjang
+                  </div>
+                </div>
+              ) : (
+                /* Add to Cart Button when item not in cart */
+                <button
+                  className={`w-full py-2 sm:py-3 rounded-lg flex items-center justify-center text-sm sm:text-base font-medium transition-all duration-200 ${
+                    showSuccess
+                      ? "bg-green-500 text-white"
+                      : isAddingToCart
+                      ? "bg-green-400 text-white cursor-not-allowed"
+                      : "bg-green-600 text-white hover:bg-green-700 active:bg-green-800"
+                  }`}
+                  onClick={handleAddToCart}
+                  disabled={isAddingToCart || showSuccess}
+                >
+                  {showSuccess ? (
+                    <>
+                      <Check className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+                      <span>Ditambahkan ke Keranjang!</span>
+                    </>
+                  ) : isAddingToCart ? (
+                    <>
+                      <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                      <span>Menambahkan...</span>
+                    </>
+                  ) : (
+                    <>
+                      <ShoppingCart className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+                      <span>Tambahkan ke Keranjang</span>
+                    </>
+                  )}
+                </button>
+              )
             ) : (
               <button
                 className="w-full bg-gray-300 text-gray-500 py-2 sm:py-3 rounded-lg flex items-center justify-center cursor-not-allowed text-sm sm:text-base font-medium"

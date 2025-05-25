@@ -11,107 +11,53 @@ import {
   ShoppingBag,
   Heart,
   Menu,
-  Pill,
-  Stethoscope,
-  PiggyBank,
-  Bandage,
   Package,
-  Activity,
-  Baby,
-  Thermometer,
-  Receipt,
-  CalendarCheck,
-  Clock,
+  Utensils,
+  Store,
+  ShoppingCart,
 } from "lucide-react";
+import { useCart } from "@/contexts/CartContext";
 
 // Pharmacy categories and menu data for Trenggalek Apotek
 const menuCategories = [
   {
-    category: "Menu Utama",
+    category: "Layanan Lain",
     items: [
       {
-        title: "Beranda",
+        title: "Makanan",
         href: "/apotek/home",
-        icon: <Home className="w-5 h-5" />,
+        icon: <Utensils className="w-5 h-5" />,
       },
       {
-        title: "Pesanan Saya",
+        title: "Supermarket",
         href: "/apotek/orders",
-        icon: <ShoppingBag className="w-5 h-5" />,
-      },
-      {
-        title: "Favorit",
-        href: "/apotek/favorites",
-        icon: <Heart className="w-5 h-5" />,
-      },
-    ],
-  },
-  {
-    category: "Kategori Obat",
-    items: [
-      {
-        title: "Obat Resep",
-        href: "/apotek/categories/prescription",
-        icon: <Receipt className="w-5 h-5" />,
-      },
-      {
-        title: "Obat Bebas",
-        href: "/apotek/categories/otc",
-        icon: <Pill className="w-5 h-5" />,
-      },
-      {
-        title: "Vitamin & Suplemen",
-        href: "/apotek/categories/vitamins",
-        icon: <Pill className="w-5 h-5" />,
-      },
-      {
-        title: "Alat Kesehatan",
-        href: "/apotek/categories/medicaltools",
-        icon: <Stethoscope className="w-5 h-5" />,
-      },
-      {
-        title: "P3K & Perban",
-        href: "/apotek/categories/firstaid",
-        icon: <Bandage className="w-5 h-5" />,
-      },
-      {
-        title: "Ibu & Bayi",
-        href: "/apotek/categories/babycare",
-        icon: <Baby className="w-5 h-5" />,
-      },
-    ],
-  },
-  {
-    category: "Layanan Apotek",
-    items: [
-      {
-        title: "Konsultasi Apoteker",
-        href: "/apotek/services/consultation",
-        icon: <Stethoscope className="w-5 h-5" />,
-      },
-      {
-        title: "Cek Kesehatan",
-        href: "/apotek/services/checkup",
-        icon: <Activity className="w-5 h-5" />,
-      },
-      {
-        title: "Antar Obat",
-        href: "/apotek/services/delivery",
-        icon: <ShoppingBag className="w-5 h-5" />,
-      },
-      {
-        title: "Jadwal Apotek",
-        href: "/apotek/services/schedule",
-        icon: <CalendarCheck className="w-5 h-5" />,
-      },
-      {
-        title: "Promo Obat",
-        href: "/apotek/promos",
-        icon: <Receipt className="w-5 h-5" />,
+        icon: <Store className="w-5 h-5" />,
       },
     ],
   },
 ];
+
+// Cart Badge Component
+const CartBadge = ({ count, size = "sm" }) => {
+  if (count === 0) return null;
+
+  const sizeClasses = {
+    sm: "w-4 h-4 text-xs",
+    md: "w-5 h-5 text-xs",
+    lg: "w-6 h-6 text-sm",
+  };
+
+  const displayCount = count > 99 ? "99+" : count.toString();
+
+  return (
+    <div
+      className={`absolute -top-1 -right-1 bg-red-500 text-white rounded-full ${sizeClasses[size]} flex items-center justify-center font-bold min-w-[1rem] h-4`}
+      style={{ fontSize: "10px", lineHeight: "1" }}
+    >
+      {displayCount}
+    </div>
+  );
+};
 
 export default function Navigation() {
   const [mounted, setMounted] = useState(false);
@@ -120,6 +66,10 @@ export default function Navigation() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
+  const { getCartItemsCount, loading: cartLoading } = useCart();
+
+  // Get cart count
+  const cartCount = cartLoading ? 0 : getCartItemsCount();
 
   // Tunggu sampai komponen di-mount sepenuhnya
   useEffect(() => {
@@ -179,7 +129,7 @@ export default function Navigation() {
   const mobileNavItems = [
     {
       title: "Beranda",
-      href: "/apotek/home",
+      href: "/",
       icon: <Home className="w-5 h-5" />,
     },
     {
@@ -188,9 +138,14 @@ export default function Navigation() {
       icon: <Search className="w-5 h-5" />,
     },
     {
-      title: "Pesanan",
-      href: "/apotek/orders",
-      icon: <ShoppingBag className="w-5 h-5" />,
+      title: "Keranjang",
+      href: "/apotek/cart",
+      icon: (
+        <div className="relative">
+          <ShoppingCart className="w-5 h-5" />
+          <CartBadge count={cartCount} />
+        </div>
+      ),
     },
     {
       title: "Favorit",
@@ -255,10 +210,11 @@ export default function Navigation() {
                   <Heart className="w-5 h-5 text-gray-500" />
                 </Link>
                 <Link
-                  href="/apotek/orders"
-                  className="p-2 rounded-full hover:bg-gray-100"
+                  href="/apotek/cart"
+                  className="p-2 rounded-full hover:bg-gray-100 relative"
                 >
                   <ShoppingBag className="w-5 h-5 text-gray-500" />
+                  <CartBadge count={cartCount} size="md" />
                 </Link>
               </div>
             </div>

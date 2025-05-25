@@ -1,8 +1,10 @@
+//file: src/app/(client)/products/page.jsx
 "use client";
 import { useState, useEffect } from "react";
-import { Search, ShoppingCart } from "lucide-react";
+import { Search, ShoppingCart, Check, Plus, Minus } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { useCart } from "@/contexts/CartContext";
 
 // Fungsi untuk memformat harga
 const formatPrice = (price) => {
@@ -17,36 +19,81 @@ const formatPrice = (price) => {
 // Komponenen kartu produk
 const ProductCard = ({ product }) => {
   const [isAdding, setIsAdding] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const { addToCart, getCartItem, updateQuantity, removeFromCart } = useCart();
+
+  // Get current cart item for this product
+  const cartItem = getCartItem(product.id);
+  const currentQuantity = cartItem ? cartItem.quantity : 0;
 
   const handleAddToCart = async (e) => {
-    e.preventDefault(); // Prevent navigation when clicking the button
-    e.stopPropagation(); // Stop event bubbling
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (product.stock <= 0) return;
 
     setIsAdding(true);
 
     try {
-      // Add your cart API call here
-      const response = await fetch("/api/cart", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          productId: product.id,
-          quantity: 1,
-        }),
-      });
+      // Add to cart using context
+      addToCart(product, 1);
 
-      if (response.ok) {
-        // You can add a toast notification here
-        console.log("Product added to cart successfully");
-      }
+      // Show success state
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 1500);
     } catch (error) {
       console.error("Error adding to cart:", error);
     } finally {
       setIsAdding(false);
     }
   };
+
+  const handleQuantityChange = (e, action) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (action === "increase") {
+      if (currentQuantity < product.stock) {
+        if (currentQuantity === 0) {
+          addToCart(product, 1);
+        } else {
+          updateQuantity(product.id, currentQuantity + 1);
+        }
+      }
+    } else if (action === "decrease") {
+      if (currentQuantity > 1) {
+        updateQuantity(product.id, currentQuantity - 1);
+      } else if (currentQuantity === 1) {
+        removeFromCart(product.id);
+      }
+    }
+  };
+
+  // Render quantity controls when item is in cart
+  const renderQuantityControls = () => (
+    <div className="flex items-center justify-between w-full">
+      <button
+        onClick={(e) => handleQuantityChange(e, "decrease")}
+        className="p-1 rounded-full bg-green-100 text-green-600 hover:bg-green-200 transition-colors"
+      >
+        <Minus className="w-3 h-3" />
+      </button>
+      <span className="font-medium text-green-600 mx-2 min-w-[1.5rem] text-center">
+        {currentQuantity}
+      </span>
+      <button
+        onClick={(e) => handleQuantityChange(e, "increase")}
+        disabled={currentQuantity >= product.stock}
+        className={`p-1 rounded-full transition-colors ${
+          currentQuantity >= product.stock
+            ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+            : "bg-green-100 text-green-600 hover:bg-green-200"
+        }`}
+      >
+        <Plus className="w-3 h-3" />
+      </button>
+    </div>
+  );
 
   return (
     <div className="bg-white rounded-lg overflow-hidden shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
@@ -71,6 +118,12 @@ const ProductCard = ({ product }) => {
                 ((product.price - product.discountPrice) / product.price) * 100
               )}
               % OFF
+            </div>
+          )}
+          {/* Cart quantity indicator */}
+          {currentQuantity > 0 && (
+            <div className="absolute top-1 left-1/2 transform -translate-x-1/2 bg-green-600 text-white text-xs font-bold px-2 py-1 rounded-full">
+              {currentQuantity}
             </div>
           )}
         </div>
@@ -106,32 +159,83 @@ const ProductCard = ({ product }) => {
           <div className="text-xs text-gray-500">
             per {product.unit || "kemasan"}
           </div>
+          {product.stock > 0 && product.stock <= 10 && (
+            <div className="text-xs text-orange-500 font-medium">
+              Stok tersisa {product.stock}
+            </div>
+          )}
         </div>
 
-        {/* Tombol Tambah ke Keranjang */}
-        <button
-          onClick={handleAddToCart}
-          disabled={product.stock <= 0 || isAdding}
-          className={`w-full py-1.5 sm:py-2 px-2 sm:px-3 rounded-md text-xs sm:text-sm font-medium flex items-center justify-center gap-1 sm:gap-2 transition-colors ${
-            product.stock <= 0
-              ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-              : isAdding
-              ? "bg-green-400 text-white cursor-not-allowed"
-              : "bg-green-600 text-white hover:bg-green-700 active:bg-green-800"
-          }`}
-        >
-          <ShoppingCart className="w-3 h-3 sm:w-4 sm:h-4" />
-          <span className="hidden sm:inline">
-            {isAdding
-              ? "Menambahkan..."
-              : product.stock <= 0
-              ? "Stok Habis"
-              : "Tambah ke Keranjang"}
-          </span>
-          <span className="sm:hidden">
-            {isAdding ? "..." : product.stock <= 0 ? "Habis" : "Tambah"}
-          </span>
-        </button>
+        {/* Cart Action Button */}
+        <div className="w-full">
+          {product.stock <= 0 ? (
+            <button
+              disabled
+              className="w-full py-1.5 sm:py-2 px-2 sm:px-3 rounded-md text-xs sm:text-sm font-medium flex items-center justify-center bg-gray-100 text-gray-400 cursor-not-allowed"
+            >
+              <span>Stok Habis</span>
+            </button>
+          ) : currentQuantity > 0 ? (
+            <div className="w-full py-1.5 sm:py-2 px-2 sm:px-3 rounded-md text-xs sm:text-sm font-medium bg-green-50 border border-green-200">
+              {renderQuantityControls()}
+            </div>
+          ) : (
+            <button
+              onClick={handleAddToCart}
+              disabled={isAdding || showSuccess}
+              className={`w-full py-1.5 sm:py-2 px-2 sm:px-3 rounded-md text-xs sm:text-sm font-medium flex items-center justify-center gap-1 sm:gap-2 transition-all duration-200 ${
+                showSuccess
+                  ? "bg-green-500 text-white"
+                  : isAdding
+                  ? "bg-green-400 text-white cursor-not-allowed"
+                  : "bg-green-600 text-white hover:bg-green-700 active:bg-green-800"
+              }`}
+            >
+              {showSuccess ? (
+                <>
+                  <Check className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline">Ditambahkan!</span>
+                  <span className="sm:hidden">✓</span>
+                </>
+              ) : isAdding ? (
+                <>
+                  <div className="w-3 h-3 sm:w-4 sm:h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span className="hidden sm:inline">Menambahkan...</span>
+                  <span className="sm:hidden">...</span>
+                </>
+              ) : (
+                <>
+                  <ShoppingCart className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline">Tambah ke Keranjang</span>
+                  <span className="sm:hidden">Tambah</span>
+                </>
+              )}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Toast notification component
+const Toast = ({ message, type = "success", onClose }) => {
+  useEffect(() => {
+    const timer = setTimeout(onClose, 3000);
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  return (
+    <div
+      className={`fixed top-20 right-4 z-[70] p-4 rounded-lg shadow-lg border max-w-xs ${
+        type === "success"
+          ? "bg-green-50 border-green-200 text-green-800"
+          : "bg-red-50 border-red-200 text-red-800"
+      }`}
+    >
+      <div className="flex items-center gap-2">
+        {type === "success" && <Check className="w-4 h-4" />}
+        <p className="text-sm font-medium">{message}</p>
       </div>
     </div>
   );
@@ -143,12 +247,20 @@ export default function ProductPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
+  const [toast, setToast] = useState(null);
   const [pagination, setPagination] = useState({
     page: 1,
     pageSize: 10,
     totalCount: 0,
     totalPages: 0,
   });
+
+  const { getCartItemsCount } = useCart();
+
+  // Show toast notification
+  const showToast = (message, type = "success") => {
+    setToast({ message, type });
+  };
 
   // Fetch data from API
   useEffect(() => {
@@ -172,6 +284,7 @@ export default function ProductPage() {
         }
       } catch (error) {
         console.error("Error fetching products:", error);
+        showToast("Gagal memuat produk", "error");
       } finally {
         setLoading(false);
       }
@@ -225,6 +338,15 @@ export default function ProductPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
+      {/* Toast Notification */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
+
       <div className="mb-4 sm:mb-6">
         <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-800 mb-1">
           Kesehatan Sampai ke Rumah Anda
@@ -233,6 +355,26 @@ export default function ProductPage() {
           Kami siap mengantarkan produk dan kebutuhan kesehatan langsung ke
           pintu rumah Anda
         </p>
+
+        {/* Cart summary */}
+        {getCartItemsCount() > 0 && (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ShoppingCart className="w-4 h-4 text-green-600" />
+                <span className="text-sm font-medium text-green-800">
+                  {getCartItemsCount()} item dalam keranjang
+                </span>
+              </div>
+              <Link
+                href="/apotek/cart"
+                className="text-sm text-green-600 hover:text-green-700 font-medium"
+              >
+                Lihat Keranjang →
+              </Link>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Search Bar */}

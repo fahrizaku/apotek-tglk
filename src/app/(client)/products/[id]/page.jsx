@@ -75,18 +75,6 @@ export default function ProductDetailPage() {
     setToast({ message, type });
   };
 
-  // Debug: Monitor cart changes
-  useEffect(() => {
-    if (process.env.NODE_ENV === "development") {
-      console.log("Cart updated:", {
-        productId: product?.id,
-        cartItem,
-        currentCartQuantity,
-        totalCartItems: getCartItemsCount(),
-      });
-    }
-  }, [cartItem, currentCartQuantity, product?.id, getCartItemsCount]);
-
   useEffect(() => {
     const fetchProduct = async () => {
       setLoading(true);
@@ -416,16 +404,6 @@ export default function ProductDetailPage() {
             </p>
           </div>
 
-          {/* Debug info - remove this in production */}
-          {process.env.NODE_ENV === "development" && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded p-2 mb-4 text-xs">
-              <div>Product ID: {product?.id}</div>
-              <div>Cart Item: {cartItem ? "Found" : "Not found"}</div>
-              <div>Current Quantity: {currentCartQuantity}</div>
-              <div>Total Cart Items: {getCartItemsCount()}</div>
-            </div>
-          )}
-
           {/* Cart Summary Info */}
           {currentCartQuantity > 0 && (
             <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
@@ -470,9 +448,6 @@ export default function ProductDetailPage() {
                     >
                       <Plus className="w-5 h-5" />
                     </button>
-                  </div>
-                  <div className="text-center text-xs text-green-600 mt-1">
-                    Di Keranjang
                   </div>
                 </div>
               ) : (

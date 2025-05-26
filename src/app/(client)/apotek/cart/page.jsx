@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCart } from "@/contexts/CartContext";
 
 // Format price helper
@@ -201,15 +202,21 @@ const CartSummary = ({ items, total, onCheckout }) => {
 
         <div className="flex justify-between text-sm">
           <span className="text-gray-600">Ongkos Kirim</span>
-          <span className="text-green-600 font-medium">GRATIS</span>
+          <span className="text-gray-500 italic text-xs">
+            Belum termasuk ongkir
+          </span>
         </div>
 
         <hr className="my-2" />
 
         <div className="flex justify-between font-semibold text-base">
-          <span>Total Pembayaran</span>
+          <span>Subtotal</span>
           <span className="text-green-600">{formatPrice(total)}</span>
         </div>
+
+        <p className="text-xs text-gray-500 italic">
+          *Ongkos kirim akan dihitung pada halaman checkout
+        </p>
       </div>
 
       <button
@@ -225,7 +232,7 @@ const CartSummary = ({ items, total, onCheckout }) => {
         ) : (
           <>
             <ShoppingBag className="w-5 h-5" />
-            Checkout ({itemCount} Item)
+            Lanjut ke Checkout
           </>
         )}
       </button>
@@ -235,6 +242,7 @@ const CartSummary = ({ items, total, onCheckout }) => {
 
 // Main Cart Page Component
 export default function CartPage() {
+  const router = useRouter();
   const {
     items,
     loading,
@@ -260,8 +268,8 @@ export default function CartPage() {
   };
 
   const handleCheckout = async () => {
-    // Here you would integrate with your checkout/payment system
-    alert("Fitur checkout akan segera tersedia!");
+    // Navigate to checkout page
+    router.push("/apotek/checkout");
   };
 
   if (loading) {

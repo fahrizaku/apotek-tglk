@@ -129,7 +129,7 @@ export default function Navigation() {
   const mobileNavItems = [
     {
       title: "Beranda",
-      href: "/",
+      href: "/products",
       icon: <Home className="w-5 h-5" />,
     },
     {

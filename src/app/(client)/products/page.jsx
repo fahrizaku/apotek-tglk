@@ -16,7 +16,7 @@ const formatPrice = (price) => {
   }).format(price);
 };
 
-// Komponenen kartu produk
+// Komponen kartu produk dengan tombol sejajar
 const ProductCard = ({ product }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -96,17 +96,19 @@ const ProductCard = ({ product }) => {
   );
 
   return (
-    <div className="bg-white rounded-lg overflow-hidden shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+    <div className="bg-white rounded-lg overflow-hidden shadow-sm border border-gray-100 hover:shadow-md transition-shadow h-full flex flex-col">
       <Link href={`/products/${product.id}`}>
         <div className="relative cursor-pointer">
-          <Image
-            src={product.mediaUrl || "/placeholder-product.jpg"}
-            alt={product.name}
-            width={500}
-            height={500}
-            className="w-full h-32 sm:h-40 object-cover"
-            priority
-          />
+          <div className="w-full aspect-square">
+            <Image
+              src={product.mediaUrl || "/placeholder-product.jpg"}
+              alt={product.name}
+              width={500}
+              height={500}
+              className="w-full h-full object-cover"
+              priority
+            />
+          </div>
           {product.isNewArrival && (
             <div className="absolute top-1 left-1 sm:top-2 sm:left-2 bg-green-500 text-white text-xs font-medium px-1 py-0.5 sm:px-2 sm:py-1 rounded">
               Produk Baru
@@ -129,14 +131,16 @@ const ProductCard = ({ product }) => {
         </div>
       </Link>
 
-      <div className="p-2 sm:p-3">
+      {/* Content section with flex-grow to push button to bottom */}
+      <div className="p-2 sm:p-3 flex flex-col flex-grow">
         <Link href={`/products/${product.id}`}>
-          <h3 className="font-medium text-gray-800 mb-1 sm:mb-2 line-clamp-2 cursor-pointer hover:text-green-600 text-sm sm:text-base leading-tight">
+          <h3 className="font-medium text-gray-800 mb-1 sm:mb-2 line-clamp-2 cursor-pointer hover:text-green-600 text-sm sm:text-base leading-tight min-h-[2.5rem] sm:min-h-[3rem]">
             {product.name}
           </h3>
         </Link>
 
-        <div className="mb-2 sm:mb-3">
+        {/* Price and stock info section - flex-grow to take available space */}
+        <div className="mb-2 sm:mb-3 flex-grow">
           {product.stock <= 0 && (
             <div className="text-xs text-red-500 font-medium mb-1">
               Stok Habis
@@ -166,8 +170,8 @@ const ProductCard = ({ product }) => {
           )}
         </div>
 
-        {/* Cart Action Button */}
-        <div className="w-full">
+        {/* Cart Action Button - always at bottom */}
+        <div className="w-full mt-auto">
           {product.stock <= 0 ? (
             <button
               disabled

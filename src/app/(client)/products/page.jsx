@@ -120,9 +120,9 @@ const ProductCard = ({ product }) => {
               % OFF
             </div>
           )}
-          {/* Cart quantity indicator */}
+          {/* Cart quantity indicator - moved to top right corner */}
           {currentQuantity > 0 && (
-            <div className="absolute top-1 left-1/2 transform -translate-x-1/2 bg-green-600 text-white text-xs font-bold px-2 py-1 rounded-full">
+            <div className="absolute top-1 right-1 sm:top-2 sm:right-2 bg-green-600 text-white text-xs font-bold px-2 py-1 rounded-full min-w-[1.5rem] text-center z-10">
               {currentQuantity}
             </div>
           )}
